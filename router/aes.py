@@ -1,6 +1,5 @@
 import os
 import base64
-import binascii
 from fastapi import APIRouter, HTTPException, status
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from pydantic import BaseModel
@@ -111,7 +110,6 @@ async def kcv(kcv: KCV, response_model=KCV, status_code=status.HTTP_200_OK):
     ct = encryptor.update(data_bytes) + encryptor.finalize()
     kcv_hex = base64.b64encode(ct).hex()[0:6]
     return {"kcv": kcv_hex}
-    #return {"key" : key}
 
 
 

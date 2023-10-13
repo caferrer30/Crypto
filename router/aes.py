@@ -1,5 +1,6 @@
 import os
 import base64
+import binascii
 from fastapi import APIRouter, HTTPException, status
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from pydantic import BaseModel
@@ -19,13 +20,15 @@ class DECRYPT(BaseModel):
     padding: bool
     tag: str
 
+class KCV(BaseModel):
+    dkey: str
+    input_codec: str
+
 router = APIRouter()
 
 #ENCRYPT-------------------------------------------------------------------------------------------------------------------------------
 
-
-
-@router.get("/aes/encrypt")
+@router.post("/aes/encrypt")
 async def encrypt(encrypt: ENCRYPT, response_model=ENCRYPT, status_code=status.HTTP_200_OK):
     if encrypt.padding:
         BLOCK_SIZE = 16
@@ -65,8 +68,8 @@ async def encrypt(encrypt: ENCRYPT, response_model=ENCRYPT, status_code=status.H
 
 #DECRYPT-------------------------------------------------------------------------------------------------------------------------------
 
-@router.get("/aes/decrypt")
-async def encrypt(decrypt: DECRYPT, response_model=DECRYPT, status_code=status.HTTP_200_OK):
+@router.post("/aes/decrypt")
+async def decrypt(decrypt: DECRYPT, response_model=DECRYPT, status_code=status.HTTP_200_OK):
 #Key a B64
     key = base64.b64decode(decrypt.dkey)
     iv = decrypt.iv.encode()
@@ -89,3 +92,26 @@ async def encrypt(decrypt: DECRYPT, response_model=DECRYPT, status_code=status.H
     else:
         data_unpad = datadecrypt
     return {"data": data_unpad}
+
+#KCV--------------------------------------------------------------------------------------------------------------------------
+
+@router.post("/aes/kcv")
+async def kcv(kcv: KCV, response_model=KCV, status_code=status.HTTP_200_OK):
+    if kcv.input_codec == "B64":
+        key = base64.b64decode(kcv.dkey)
+        dkey = base64.b64decode(kcv.dkey).hex()
+    elif kcv.input_codec == "HEX":       
+        key = bytes.fromhex(kcv.dkey)
+    else:
+        status_code=status.HTTP_400_BAD_REQUEST       
+    data_bytes = "0000000000000000".encode()
+    cipher = Cipher(algorithms.AES(key), modes.ECB())
+ #Cifrado
+    encryptor = cipher.encryptor()
+    ct = encryptor.update(data_bytes) + encryptor.finalize()
+    kcv_hex = base64.b64encode(ct).hex()[0:6]
+    return {"kcv": kcv_hex}
+    #return {"key" : key}
+
+
+
